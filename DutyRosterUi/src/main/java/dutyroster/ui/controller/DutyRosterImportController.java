@@ -1,18 +1,25 @@
 package dutyroster.ui.controller;
 
 import dutyroster.ui.dto.DutyRosterImportFormDto;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
+import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Simple controller for the page "importForm.jsp".
@@ -20,7 +27,14 @@ import java.util.Calendar;
 @Controller
 public class DutyRosterImportController {
 
+    private static final String API_URL = "http://localhost:8089/api/";
+    private static final String PING_URL = API_URL + "ping";
+    private static final String SERVICE_URL = API_URL + "convertAndImport/{originalFilename}/{year}/{month}/{dryRun}/{createCsv}";
+
     private final Logger log = org.slf4j.LoggerFactory.getLogger(DutyRosterImportController.class);
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     @RequestMapping(value = "/importForm", method = RequestMethod.HEAD)
     public ModelAndView head() throws IOException {
@@ -37,7 +51,7 @@ public class DutyRosterImportController {
     @RequestMapping(value = "/importForm", method = RequestMethod.POST)
     public String importDutyRoster(HttpSession session,
                                    @Valid @ModelAttribute("dutyRosterUploadForm") DutyRosterImportFormDto formDto,
-                                   BindingResult bindingResult) {
+                                   BindingResult bindingResult) throws Exception {
 
         log.debug("form: [{}]", formDto);
 
@@ -46,11 +60,29 @@ public class DutyRosterImportController {
             return "importForm";
         }
 
-        // TODO
-        log.error("TODO....");
+        String pong = restTemplate.postForObject(PING_URL, null, String.class);
+        log.info("ping? [{}]", pong);
+
+        File tempFile = File.createTempFile("dutyrosterimport_", ".docx");
+        formDto.getFile().transferTo(tempFile);
+        tempFile.deleteOnExit();
+
+        log.info("file size: [{}]", formDto.getFile().getSize());
+        log.info("file copied to temp file [{}]", tempFile.getAbsolutePath());
+
+        Map<String, Object> requestParams = new HashMap<>();
+        requestParams.put("originalFilename", formDto.getFile().getOriginalFilename());
+        requestParams.put("year", formDto.getYear());
+        requestParams.put("month", formDto.getMonth());
+        requestParams.put("dryRun", formDto.getDryRun());
+        requestParams.put("createCsv", formDto.getCreateCsv());
+
+        String result = restTemplate.postForObject(SERVICE_URL, tempFile.getAbsolutePath(), String.class, requestParams);
 
         session.setAttribute("formDto", formDto);
-        session.setAttribute("importResult", "not implemented");
+        result = StringEscapeUtils.escapeHtml(result);
+        result = StringUtils.replace(result, "\n", "<br/>");
+        session.setAttribute("importResult", result);
 
         return "redirect:/importResult";
     }
