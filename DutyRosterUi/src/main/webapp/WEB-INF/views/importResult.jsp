@@ -39,9 +39,9 @@
 
     </table>
 
-    <h2>Result</h2>
+    <h2 style="text-align: left">Result</h2>
 
-    <p>${importResult}</p>
+    <p style="text-align: left">${importResult}</p>
 
     <br/>
 
