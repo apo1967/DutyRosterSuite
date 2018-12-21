@@ -4,6 +4,7 @@ import dutyroster.ui.dto.DutyRosterImportFormDto;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
@@ -37,12 +38,12 @@ public class DutyRosterImportController {
     private RestTemplate restTemplate;
 
     @RequestMapping(value = "/importForm", method = RequestMethod.HEAD)
-    public ModelAndView head() throws IOException {
+    public ModelAndView head() {
         return get();
     }
 
     @RequestMapping(value = "/importForm", method = RequestMethod.GET)
-    public ModelAndView get() throws IOException {
+    public ModelAndView get() {
         ModelAndView mav = new ModelAndView("importForm");
         mav.addObject("dutyRosterUploadForm", createFormDto());
         return mav;
@@ -60,7 +61,7 @@ public class DutyRosterImportController {
             return "importForm";
         }
 
-        String pong = restTemplate.postForObject(PING_URL, null, String.class);
+        String pong = restTemplate.getForObject(PING_URL, String.class);
         log.info("ping? [{}]", pong);
 
         File tempFile = File.createTempFile("dutyrosterimport_", ".docx");
